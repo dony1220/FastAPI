@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hans Dashboard</title>
+    <link rel="stylesheet" href="/static/static.css">
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        cursor: pointer;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center; /* 가로 중앙 정렬 */
+        align-items: center; /* 세로 중앙 정렬 */
+        height: 100vh; /* 화면 전체 높이 */
+        background-image: url('/static/background.avif'); /* 배경 이미지 경로 */
+        background-size: cover; /* 이미지가 화면에 맞게 크기 조정 */
+        background-position: center; /* 이미지를 중앙에 배치 */
+        background-repeat: no-repeat; /* 이미지 반복 방지 */
+    }
+
+    .container {
+        max-width: 600px;
+        background: rgba(255, 255, 255, 0.8); /* 반투명 흰색 배경 */
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        text-align: center;
+    }
+
+    h1 {
+        font-size: 2rem;
+        margin-bottom: 20px;
+        color: #333;
+    }
+
+    p {
+        font-size: 1.2rem;
+        margin-bottom: 30px;
+        color: #555;
+    }
+
+    .btn {
+        display: inline-block;
+        padding: 10px 20px;
+        font-size: 1.3rem;
+        color: #fff;
+        background-color: #007bff;
+        border: none;
+        border-radius: 5px;
+        text-decoration: none;
+        transition: background-color 0.3s ease;
+    }
+
+    .btn:hover {
+        background-color: #0056b3;
+    }
+    .click-firework {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: rgba(0, 183, 255, 0.733);
+            border-radius: 50%;
+            animation: firework 0.8s ease-out forwards;
+            pointer-events: none;
+        }
+
+        /* 애니메이션 keyframes */
+        @keyframes firework {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(var(--x), var(--y)) scale(0.7);
+                opacity: 0;
+            }
+        }
+        footer {
+        position: fixed; /* 화면 하단 고정 */
+        bottom: 9px; /* 화면 아래에서 약간 띄움 */
+        width: 100%; /* 화면 너비에 맞춤 */
+        text-align: center; /* 텍스트 중앙 정렬 */
+        font-size: 0.8rem; /* 우선순위 강제 적용 */
+        color: #555; /* 배경과 조화로운 색상 */
+        background: rgba(255, 255, 255, 0.361); /* 반투명 배경 */
+        padding: 5px;
+        box-shadow: 0 -1px 4px rgba(0, 0, 0, 0.1); /* 위쪽 그림자 */
+        }
+
+        footer a {
+            color: #4316b7b8; /* 링크 색상 */
+            text-decoration: none; /* 밑줄 제거 */
+            transition: color 0.3s ease; /* 색상 전환 효과 */
+        }
+
+        footer a:hover {
+            color: #0894db; /* 호버 시 색상 변경 */
+        }
+</style>
+</head>
+<body>
+    <div class="container">
+        <h1>⭐Welcome to Hans Dashboard⭐</h1>
+        <p>2019년부터 2024년까지 취합한 대시보드 입니다</p>
+        <a href="/dash" class="btn">Go to Dashboard</a>
+    </div>
+    <footer>
+        <h3>담당부서 : 더 시그널</h3>
+        <h3>담당자 : 김도현</h3>
+        <h3>📞010-7258-6158</a> <a href="mailto:dh6158@sporiz.co.kr">📮dh6158@sporbiz.co.kr</a></h3>
+        <h3>누락된 데이터가 존재할 수 있습니다. 언제든 연락주시면 바로 업데이트 하도록 하겠습니다</h3>
+    </footer>
+    <script>
+            document.addEventListener('click', (event) => {
+            const x = event.clientX;
+            const y = event.clientY;
+
+            // 여러 개의 작은 점(폭죽) 생성
+            for (let i = 0; i < 15; i++) { // 점의 개수 (15개)
+                const angle = (Math.PI * 2) * (i / 15); // 각도를 분할
+                const distance = Math.random() * 80 + 30; // 점이 퍼지는 거리 (20~100px 랜덤)
+                const xOffset = Math.cos(angle) * distance;
+                const yOffset = Math.sin(angle) * distance;
+
+                // 점을 나타내는 div 생성
+                const particle = document.createElement('div');
+                particle.className = 'click-firework';
+                particle.style.left = `${x}px`;
+                particle.style.top = `${y}px`;
+                particle.style.setProperty('--x', `${xOffset}px`);
+                particle.style.setProperty('--y', `${yOffset}px`);
+
+                document.body.appendChild(particle);
+
+                // 애니메이션이 끝난 후 div 제거
+                setTimeout(() => {
+                    particle.remove();
+                }, 800); // 애니메이션 지속 시간
+            }
+        });
+    </script>
+</body>
+</html>

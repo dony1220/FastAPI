@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hans Dashboard</title>
+    <link rel="stylesheet" href="/static/static.css">
+    <style>
+        /* 스타일 업데이트 */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f97b;
+            margin: 0;
+            padding: 20px;
+            cursor: pointer;
+            height: 100vh; /* 화면 전체 높이 */
+        }
+    
+        .container {
+            max-width: 1000px; /* 컨테이너의 넓이를 더 늘림 */
+            margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+    
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+        }
+    
+        .form-group {
+    margin-bottom: 20px;
+        }
+
+/* 라벨 스타일 */
+        .custom-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            font-size: 15px;
+            color: #333;
+        }
+
+        /* 드롭다운 컨테이너 */
+        .custom-select-container {
+            position: relative;
+            width: 100%;
+            max-width: 300px;
+        }
+
+        /* 드롭다운 기본 스타일 */
+        .custom-select {
+            width: 100%;
+            padding: 10px 12px;
+            font-size: 15px;
+            color: #555;
+            background: #f9f9f9;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            appearance: none; /* 기본 드롭다운 화살표 제거 */
+            -moz-appearance: none;
+            -webkit-appearance: none;
+            cursor: pointer;
+        }
+
+        /* 드롭다운에 커스텀 화살표 추가 */
+        .custom-select-container::after {
+            content: '▼';
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #555;
+            pointer-events: none; /* 화살표 클릭 방지 */
+        }
+
+        /* 드롭다운 포커스 스타일 */
+        .custom-select:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 4px rgba(0, 123, 255, 0.5);
+        }
+
+        /* 버튼 스타일 */
+        .custom-btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .custom-btn:hover {
+            background-color: #0056b3;
+        }
+
+        .custom-btn:focus {
+            outline: none;
+            box-shadow: 0 0 4px rgba(0, 123, 255, 0.5);
+        }
+    
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+    
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            font-size: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+    
+        input[type="text"]:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 8px rgba(0, 123, 255, 0.4);
+            outline: none;
+        }
+    
+        button {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            color: white;
+            background-color: #00c3ff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+    
+        button:hover {
+            background-color: #0056b3;
+        }
+    
+        #result {
+            margin-top: 20px;
+            overflow-x: auto; /* 가로 스크롤 가능 */
+        }
+    
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 13px; /* 테이블 글자 크기 축소 */
+            overflow-x: auto; /* 긴 테이블의 경우 스크롤 가능 */
+        }
+    
+        th, td {
+            border: 2px solid #ddd;
+            padding: 8px;
+            text-align: center;
+            word-wrap: break-word; /* 내용 줄바꿈 */
+        }
+    
+        th {
+            background-color: #f4f4f4;
+            font-weight: bold;
+            font-size: 13px; /* 테이블 헤더 글자 크기 축소 */
+        }
+    
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        .spinner-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 10px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+            /* 클릭 애니메이션을 위한 스타일 */
+        .click-firework {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: rgba(0, 183, 255, 0.733);
+            border-radius: 50%;
+            animation: firework 0.8s ease-out forwards;
+            pointer-events: none;
+        }
+
+        /* 애니메이션 keyframes */
+        @keyframes firework {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(var(--x), var(--y)) scale(0.5);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>재무 시계열 분류</h1>
+        <form id="data-form">
+            <div class="form-group">
+                <label for="company-input">회사명을 입력해주세요</label>
+                <input type="text" id="company-input" name="company" placeholder="회사명을 입력해주세요" required />
+            </div>
+            <div class="form-group">
+                <label for="statement-input" class='custom-label'>재무제표명을 선택해주세요</label>
+                <div class = 'custom-select-container'>
+                    <select id = 'statement-input' name ='statement' required class = 'custom-select'>
+                        <option value ="" disabled selected>재무제표명을 선택해주세요</option>
+                        <option value ='연결재무제표'>연결재무제표</option>
+                        <option value ='별도재무제표'>별도재무제표</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="report-input" class="custom-label">보고서 종류를 선택해주세요</label>
+                <div class="custom-select-container">
+                    <select id="report-input" name="report" required class="custom-select">
+                        <option value="" disabled selected>보고서 종류를 선택해주세요</option>
+                        <option value="1분기보고서">1분기보고서</option>
+                        <option value="반기보고서">반기보고서</option>
+                        <option value="3분기보고서">3분기보고서</option>
+                        <option value="사업보고서">사업보고서</option>
+                    </select>
+                </div>
+            </div>
+            <button type="submit" id="submit-btn" class="custom-btn">조회</button>
+        </form>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        
+
+        // Fetch financial data
+        async function fetchFinancialData(company, statement, report) {
+            try {
+                const response = await fetch(`/financial-data?selected_company=${encodeURIComponent(company)}&selected_statement_type=${encodeURIComponent(statement)}&selected_report_type=${encodeURIComponent(report)}`);
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('Error fetching financial data:', error);
+                return null;
+            }
+        }
+        document.addEventListener('click', (event) => {
+            const x = event.pageX;
+            const y = event.pageY;
+
+            // 여러 개의 작은 점(폭죽) 생성
+            for (let i = 0; i < 15; i++) { // 점의 개수 (15개)
+                const angle = (Math.PI * 2) * (i / 15); // 각도를 분할
+                const distance = Math.random() * 80 + 30; // 점이 퍼지는 거리 (20~100px 랜덤)
+                const xOffset = Math.cos(angle) * distance;
+                const yOffset = Math.sin(angle) * distance;
+
+                // 점을 나타내는 div 생성
+                const particle = document.createElement('div');
+                particle.className = 'click-firework';
+                particle.style.left = `${x}px`;
+                particle.style.top = `${y}px`;
+                particle.style.setProperty('--x', `${xOffset}px`);
+                particle.style.setProperty('--y', `${yOffset}px`);
+
+                document.body.appendChild(particle);
+
+                // 애니메이션이 끝난 후 div 제거
+                setTimeout(() => {
+                    particle.remove();
+                }, 800); // 애니메이션 지속 시간
+            }
+        });
+    
+        // Handle form submission
+        document.getElementById('data-form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+    
+            const company = document.getElementById('company-input').value;
+            const statement = document.getElementById('statement-input').value;
+            const report = document.getElementById('report-input').value;
+    
+            if (!company || !statement || !report) {
+                alert('회사명과 재무제표명을 입력하고, 보고서명을 선택하세요.');
+                return;
+            }
+    
+            const resultContainer = document.getElementById('result');
+            resultContainer.innerHTML = `
+                <div class="spinner-container">
+                    <div class="spinner"></div>
+                    <p>데이터를 불러오는 중...</p>
+                </div>
+            `;
+    
+            const data = await fetchFinancialData(company, statement, report);
+    
+            if (data.error) {
+                resultContainer.innerHTML = `<p>오류: ${data.error}</p>`;
+            } else if (data.message) {
+                resultContainer.innerHTML = `<p>${data.message}</p>`;
+            } else if (data.financial_data.length === 0) {
+                resultContainer.innerHTML = '<p>조회된 데이터가 없습니다.</p>';
+            } else {
+                resultContainer.innerHTML = '';
+    
+                const title = document.createElement('h2');
+                title.innerHTML = `${company} <span style="color: #ff5722;">연결재무추이</span> <small style="font-size: 12px;">(단위 : 억원)</small>`;
+                title.style.color = '#007bff';
+                title.style.marginBottom = '20px';
+                title.style.textAlign = 'center';
+                title.style.fontWeight = 'bold';
+                title.style.padding = '10px';
+                title.style.borderRadius = '8px';
+                title.style.background = 'linear-gradient(to right, #e0f7fa, #e3f2fd)';
+                title.style.boxShadow = '0px 4px 8px rgba(0, 0, 0, 0.3)';
+                const icon = document.createElement('span');
+                icon.innerHTML = '📊';
+                icon.style.marginRight = '8px';
+                title.prepend(icon);
+    
+                resultContainer.appendChild(title);
+    
+                const table = document.createElement('table');
+                const thead = document.createElement('thead');
+                const headerRow = document.createElement('tr');
+    
+                // Add table headers dynamically
+                Object.keys(data.financial_data[0]).forEach(key => {
+                    const th = document.createElement('th');
+                    th.textContent = key;
+                    headerRow.appendChild(th);
+                });
+    
+                thead.appendChild(headerRow);
+                table.appendChild(thead);
+    
+                const tbody = document.createElement('tbody');
+    
+                // Add table rows dynamically
+                data.financial_data.forEach(row => {
+                    const tr = document.createElement('tr');
+                    Object.values(row).forEach(value => {
+                        const td = document.createElement('td');
+                        td.innerHTML = value;
+                        tr.appendChild(td);
+                    });
+                    tbody.appendChild(tr);
+                });
+    
+                table.appendChild(tbody);
+                resultContainer.appendChild(table);
+
+                const explanation = document.createElement('div');
+                explanation.innerHTML = `
+                    <p style ="color: #666; font-size: 12px; margin-top: 10px;">
+                        *출처: OpenDart *제작: 한스경제 자체제작
+                    </p>
+                    <p style="color: #666; font-size: 12px; margin-top: 10px;">
+                        *순차입금은 총차입금에서 단순 현금자산을 감한 것
+                    </p>
+                `;
+                resultContainer.appendChild(explanation);
+            }
+        });
+    </script>   
+</body>
+</html>
