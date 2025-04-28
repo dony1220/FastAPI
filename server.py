@@ -419,7 +419,7 @@ async def get_financial_data(
                 return stock_data['Close'].values[0]
             except Exception as e:
                 print(f"주가 데이터 없음: {str(e)}")
-                return f"주가 조회 오류"
+                return f"주가 데이터 없음"
 
         def get_market_cap(stock_code):
             try:
@@ -461,7 +461,7 @@ async def get_financial_data(
         
         stock_price_row = {
             "항목명": f'{today_today} 주가',
-            ref_col: f'{stock_price:,}원' if isinstance(stock_price, (int, float)) else f"{stock_price}원",
+            ref_col: f'{stock_price:,}원' if isinstance(stock_price, (int, float)) else f"{stock_price:,}원",
             **{col: None for col in merged_df.columns if col not in ["항목명", ref_col]}
         }
         market_cap_row = {
