@@ -9,7 +9,7 @@
         /* 스타일 업데이트 */
         body {
             font-family: Arial, sans-serif;
-            background-color: #f9f9f97b;
+            background-color: #79cfd77b;
             margin: 0;
             padding: 20px;
             cursor: pointer;
@@ -68,7 +68,7 @@
 
         /* 드롭다운에 커스텀 화살표 추가 */
         .custom-select-container::after {
-            content: '▼';
+            /* content: '▼'; */
             position: absolute;
             right: 12px;
             top: 50%;
@@ -152,16 +152,15 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
-            font-size: 13px; /* 테이블 글자 크기 축소 */
-            overflow-x: auto; /* 긴 테이블의 경우 스크롤 가능 */
+            table-layout: fixed;
         }
     
         th, td {
             border: 2px solid #ddd;
             padding: 8px;
             text-align: center;
-            word-wrap: break-word; /* 내용 줄바꿈 */
+            word-wrap: break-word; 
+            font-size: 12px;/* 내용 줄바꿈 */
         }
     
         th {
@@ -221,6 +220,16 @@
                 opacity: 0;
             }
         }
+        .horizontal-group {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;  /* 모바일 대응 */
+        }
+
+        .select-set {
+            flex: 1;
+            min-width: 250px;
+        }
     </style>
 </head>
 <body>
@@ -229,15 +238,16 @@
         <form id="data-form">
             <div class="form-group">
                 <label for="company-input">회사명을 입력해주세요</label>
-                <input type="text" id="company-input" name="company" placeholder="회사명을 입력해주세요" required />
+                <input type="text" id="company-input" name="company" placeholder="회사명을 입력해주세요">
             </div>
+            <!-- <h5>*정확한 회사명을 기입해주세요</h5> -->
             <div class="form-group">
                 <label for="statement-input" class='custom-label'>재무제표명을 선택해주세요</label>
                 <div class = 'custom-select-container'>
                     <select id = 'statement-input' name ='statement' required class = 'custom-select'>
                         <option value ="" disabled selected>재무제표명을 선택해주세요</option>
-                        <option value ='연결재무제표'>연결재무제표</option>
                         <option value ='별도재무제표'>별도재무제표</option>
+                        <option value ='연결재무제표'>연결재무제표</option>
                     </select>
                 </div>
             </div>
@@ -253,54 +263,124 @@
                     </select>
                 </div>
             </div>
+            <div class="form-group">
+                <label for="aggregation-input" class="custom-label">(누적은 반기, 3분기만 해당) 분기 or 누적</label>
+                <div class="custom-select-container">
+                    <select id="aggregation-input" name="aggregation" required class="custom-select">
+                        <option value="quarterly" selected>분기 실적</option>
+                        <option value="cumulative">누적 금액</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="custom-label">재무제표종류와 항목명을 선택해주세요</label>
+                <h5>*최소 1개 이상, 다수 선택 가능 (누적금액은 손익계산서만 허용)</h5>
+                <div class="horizontal-group">
+                  
+                  <!-- 🔹 세트 1 -->
+                  <div class="select-set">
+                    <select id="binance-input-1" name="binance1" required class="custom-select">
+                      <option value="">재무제표종류 선택</option>
+                      <option value="재무상태표">재무상태표</option>
+                      <option value="손익계산서">손익계산서</option>
+                      <option value="현금흐름표">현금흐름표</option>
+                    </select>
+                    <select id="item-input-1" name="item1" required class="custom-select" multiple>
+                      <option value="">항목명 선택</option>
+                    </select>
+                    <div id="item-spinner-1" class="spinner-container" style="display: none;">
+                      <div class="spinner"></div>
+                      <p>불러오는 중...</p>
+                    </div>
+                  </div>
+              
+                  <!-- 🔹 세트 2 -->
+                  <div class="select-set">
+                    <select id="binance-input-2" name="binance2" class="custom-select">
+                      <option value="">재무제표종류 선택</option>
+                      <option value="재무상태표">재무상태표</option>
+                      <option value="손익계산서">손익계산서</option>
+                      <option value="현금흐름표">현금흐름표</option>
+                    </select>
+                    <select id="item-input-2" name="item2" class="custom-select"multiple>
+                      <option value="">항목명 선택</option>
+                    </select>
+                    <div id="item-spinner-2" class="spinner-container" style="display: none;">
+                      <div class="spinner"></div>
+                      <p>불러오는 중...</p>
+                    </div>
+                  </div>
+              
+                  <!-- 🔹 세트 3 -->
+                  <div class="select-set">
+                    <select id="binance-input-3" name="binance3" class="custom-select">
+                      <option value="">재무제표종류 선택</option>
+                      <option value="재무상태표">재무상태표</option>
+                      <option value="손익계산서">손익계산서</option>
+                      <option value="현금흐름표">현금흐름표</option>
+                    </select>
+                    <select id="item-input-3" name="item3" class="custom-select" multiple>
+                      <option value="">항목명 선택</option>
+                    </select>
+                    <div id="item-spinner-3" class="spinner-container" style="display: none;">
+                      <div class="spinner"></div>
+                      <p>불러오는 중...</p>
+                    </div>
+                 </div>
             <button type="submit" id="submit-btn" class="custom-btn">조회</button>
         </form>
+        <button type="button" id="reset-button" class="btn btn-secondary">
+            🔄 모두 초기화
+        </button>
         <div id="result"></div>
     </div>
 
     <script>
-        
 
-        // Fetch financial data
-        async function fetchFinancialData(company, statement, report) {
+        // 항목명 불러오기 (세트별)
+        async function fetchItemOptions(company, statement, report, binance, index) {
+            const spinner = document.getElementById(`item-spinner-${index}`);
+            const itemSelect = document.getElementById(`item-input-${index}`);
+    
             try {
-                const response = await fetch(`/financial-data?selected_company=${encodeURIComponent(company)}&selected_statement_type=${encodeURIComponent(statement)}&selected_report_type=${encodeURIComponent(report)}`);
+                spinner.style.display = 'block';
+                itemSelect.innerHTML = '<option value="">항목명을 선택해주세요</option>';
+    
+                const response = await fetch(`/item-options?selected_company=${encodeURIComponent(company)}&selected_statement_type=${encodeURIComponent(statement)}&selected_report_type=${encodeURIComponent(report)}&selected_binance_type=${encodeURIComponent(binance)}`);
                 const data = await response.json();
-                return data;
-            } catch (error) {
-                console.error('Error fetching financial data:', error);
-                return null;
+    
+                data.item_options.forEach(option => {
+                    const opt = document.createElement('option');
+                    opt.value = option.value;
+                    opt.textContent = option.label;
+                    itemSelect.appendChild(opt);
+                });
+            } catch (err) {
+                console.error(`항목명(${index}) 불러오기 실패:`, err);
+            } finally {
+                spinner.style.display = 'none';
             }
         }
-        document.addEventListener('click', (event) => {
-            const x = event.pageX;
-            const y = event.pageY;
-
-            // 여러 개의 작은 점(폭죽) 생성
-            for (let i = 0; i < 15; i++) { // 점의 개수 (15개)
-                const angle = (Math.PI * 2) * (i / 15); // 각도를 분할
-                const distance = Math.random() * 80 + 30; // 점이 퍼지는 거리 (20~100px 랜덤)
-                const xOffset = Math.cos(angle) * distance;
-                const yOffset = Math.sin(angle) * distance;
-
-                // 점을 나타내는 div 생성
-                const particle = document.createElement('div');
-                particle.className = 'click-firework';
-                particle.style.left = `${x}px`;
-                particle.style.top = `${y}px`;
-                particle.style.setProperty('--x', `${xOffset}px`);
-                particle.style.setProperty('--y', `${yOffset}px`);
-
-                document.body.appendChild(particle);
-
-                // 애니메이션이 끝난 후 div 제거
-                setTimeout(() => {
-                    particle.remove();
-                }, 800); // 애니메이션 지속 시간
-            }
-        });
     
-        // Handle form submission
+        // 셀렉트 변경 시 항목명 자동 로딩
+        function setupDropdownListeners() {
+            [1, 2, 3].forEach(index => {
+                document.getElementById(`binance-input-${index}`).addEventListener('change', () => {
+                    const company = document.getElementById('company-input').value;
+                    const statement = document.getElementById('statement-input').value;
+                    const report = document.getElementById('report-input').value;
+                    const binance = document.getElementById(`binance-input-${index}`).value;
+    
+                    if (company && statement && report && binance) {
+                        fetchItemOptions(company, statement, report, binance, index);
+                    }
+                });
+            });
+        }
+    
+        setupDropdownListeners(); // 실행
+    
+        // 제출 시 데이터 수집 → 서버 요청
         document.getElementById('data-form').addEventListener('submit', async (event) => {
             event.preventDefault();
     
@@ -308,10 +388,37 @@
             const statement = document.getElementById('statement-input').value;
             const report = document.getElementById('report-input').value;
     
-            if (!company || !statement || !report) {
-                alert('회사명과 재무제표명을 입력하고, 보고서명을 선택하세요.');
+            const sets = [1, 2, 3].map(i => ({
+            binance: document.getElementById(`binance-input-${i}`).value,
+            items: Array.from(document.getElementById(`item-input-${i}`).selectedOptions).map(opt => opt.value)
+            })).filter(set => set.binance && set.items.length > 0);
+    
+            if (!company || !statement || !report || sets.length === 0) {
+                alert('회사명, 재무제표명, 보고서명, 항목명을 모두 선택해주세요.');
                 return;
             }
+            const aggregation = document.getElementById('aggregation-input').value;
+
+    
+            const queryParams = new URLSearchParams({
+                selected_company: company,
+                selected_statement_type: statement,
+                selected_report_type: report,
+                aggregation: aggregation,
+                binance1: sets[0]?.binance || '',
+                item1: sets[0]?.item || '',
+                binance2: sets[1]?.binance || '',
+                item2: sets[1]?.item || '',
+                binance3: sets[2]?.binance || '',
+                item3: sets[2]?.item || ''
+            });
+            sets.forEach((set, index) => {
+            const idx = index + 1;
+            queryParams.set(`binance${idx}`, set.binance);
+            set.items.forEach(item => {
+            queryParams.append(`item${idx}`, item);  // 다중 항목 전달
+                });
+            });
     
             const resultContainer = document.getElementById('result');
             resultContainer.innerHTML = `
@@ -321,76 +428,115 @@
                 </div>
             `;
     
-            const data = await fetchFinancialData(company, statement, report);
+            try {
+                const response = await fetch(`/financial-data?${queryParams.toString()}`);
+                const data = await response.json();
     
-            if (data.error) {
-                resultContainer.innerHTML = `<p>오류: ${data.error}</p>`;
-            } else if (data.message) {
-                resultContainer.innerHTML = `<p>${data.message}</p>`;
-            } else if (data.financial_data.length === 0) {
-                resultContainer.innerHTML = '<p>조회된 데이터가 없습니다.</p>';
-            } else {
-                resultContainer.innerHTML = '';
+                if (data.error) {
+                    resultContainer.innerHTML = `<p>오류: ${data.error}</p>`;
+                } else if (data.message) {
+                    resultContainer.innerHTML = `<p>${data.message}</p>`;
+                } else if (data.financial_data.length === 0) {
+                    resultContainer.innerHTML = '<p>조회된 데이터가 없습니다.</p>';
+                } else {
+                    resultContainer.innerHTML = '';
+                    const title = document.createElement('h2');
+                    title.innerHTML = `${company} <span style="color: #ff5722;">연결재무추이</span> <small style="font-size: 12px;">(단위 : 억원)</small>`;
+                    title.style.color = '#007bff';
+                    title.style.marginBottom = '20px';
+                    title.style.textAlign = 'center';
+                    title.style.fontWeight = 'bold';
+                    title.style.padding = '10px';
+                    title.style.borderRadius = '8px';
+                    title.style.background = 'linear-gradient(to right, #e0f7fa, #e3f2fd)';
+                    title.style.boxShadow = '0px 4px 8px rgba(0, 0, 0, 0.3)';
+                    const icon = document.createElement('span');
+                    icon.innerHTML = '📊';
+                    icon.style.marginRight = '8px';
+                    title.prepend(icon);
+                    // title.prepend(Object.assign(document.createElement('span'), { innerHTML: '📊', style: 'margin-right: 8px' }));
     
-                const title = document.createElement('h2');
-                title.innerHTML = `${company} <span style="color: #ff5722;">연결재무추이</span> <small style="font-size: 12px;">(단위 : 억원)</small>`;
-                title.style.color = '#007bff';
-                title.style.marginBottom = '20px';
-                title.style.textAlign = 'center';
-                title.style.fontWeight = 'bold';
-                title.style.padding = '10px';
-                title.style.borderRadius = '8px';
-                title.style.background = 'linear-gradient(to right, #e0f7fa, #e3f2fd)';
-                title.style.boxShadow = '0px 4px 8px rgba(0, 0, 0, 0.3)';
-                const icon = document.createElement('span');
-                icon.innerHTML = '📊';
-                icon.style.marginRight = '8px';
-                title.prepend(icon);
+                    resultContainer.appendChild(title);
     
-                resultContainer.appendChild(title);
-    
-                const table = document.createElement('table');
-                const thead = document.createElement('thead');
-                const headerRow = document.createElement('tr');
-    
-                // Add table headers dynamically
-                Object.keys(data.financial_data[0]).forEach(key => {
-                    const th = document.createElement('th');
-                    th.textContent = key;
-                    headerRow.appendChild(th);
-                });
-    
-                thead.appendChild(headerRow);
-                table.appendChild(thead);
-    
-                const tbody = document.createElement('tbody');
-    
-                // Add table rows dynamically
-                data.financial_data.forEach(row => {
-                    const tr = document.createElement('tr');
-                    Object.values(row).forEach(value => {
-                        const td = document.createElement('td');
-                        td.innerHTML = value;
-                        tr.appendChild(td);
+                    const table = document.createElement('table');
+                    table.style.width = '100%';  // 테이블이 전체 컨테이너 너비에 맞게
+                    table.style.tableLayout = 'fixed'; // 열 너비 균등하게 배분 (선택 사항)
+                    const thead = document.createElement('thead');
+                    const headerRow = document.createElement('tr');
+                    Object.keys(data.financial_data[0]).forEach(key => {
+                        const th = document.createElement('th');
+                        th.textContent = key;
+                        headerRow.appendChild(th);
                     });
-                    tbody.appendChild(tr);
-                });
+                    thead.appendChild(headerRow);
+                    table.appendChild(thead);
     
-                table.appendChild(tbody);
-                resultContainer.appendChild(table);
-
-                const explanation = document.createElement('div');
-                explanation.innerHTML = `
-                    <p style ="color: #666; font-size: 12px; margin-top: 10px;">
-                        *출처: OpenDart *제작: 한스경제 자체제작
-                    </p>
-                    <p style="color: #666; font-size: 12px; margin-top: 10px;">
-                        *순차입금은 총차입금에서 단순 현금자산을 감한 것
-                    </p>
-                `;
-                resultContainer.appendChild(explanation);
+                    const tbody = document.createElement('tbody');
+                    data.financial_data.forEach(row => {
+                        const tr = document.createElement('tr');
+                        Object.values(row).forEach(value => {
+                            const td = document.createElement('td');
+                            td.innerHTML = value;
+                            tr.appendChild(td);
+                        });
+                        tbody.appendChild(tr);
+                    });
+    
+                    table.appendChild(tbody);
+                    resultContainer.appendChild(table);
+    
+                    const explanation = document.createElement('div');
+                    explanation.innerHTML = `
+                        <p style="color: #666; font-size: 12px; margin-top: 10px;">
+                            *출처: OpenDart *제작: 한스경제 자체제작
+                        </p>
+                    `;
+                    resultContainer.appendChild(explanation);
+                }
+            } catch (error) {
+                resultContainer.innerHTML = `<p>서버 요청 실패: ${error.message}</p>`;
             }
         });
-    </script>   
+        document.getElementById('reset-button').addEventListener('click', () => {
+        ['company-input', 'statement-input', 'report-input', 'aggregation-input'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+
+        [1, 2, 3].forEach(i => {
+            const binance = document.getElementById(`binance-input-${i}`);
+            const item = document.getElementById(`item-input-${i}`);
+            const spinner = document.getElementById(`item-spinner-${i}`);
+
+            if (binance) binance.value = '';
+            if (item) item.innerHTML = '<option value="">항목명 선택</option>';
+            if (spinner) spinner.style.display = 'none';
+        });
+
+        const resultContainer = document.getElementById('result');
+        resultContainer.innerHTML = '';
+        });
+    
+        // 클릭 효과 유지
+        document.addEventListener('click', (event) => {
+            const x = event.pageX;
+            const y = event.pageY;
+            for (let i = 0; i < 15; i++) {
+                const angle = (Math.PI * 2) * (i / 15);
+                const distance = Math.random() * 80 + 30;
+                const xOffset = Math.cos(angle) * distance;
+                const yOffset = Math.sin(angle) * distance;
+    
+                const particle = document.createElement('div');
+                particle.className = 'click-firework';
+                particle.style.left = `${x}px`;
+                particle.style.top = `${y}px`;
+                particle.style.setProperty('--x', `${xOffset}px`);
+                particle.style.setProperty('--y', `${yOffset}px`);
+                document.body.appendChild(particle);
+                setTimeout(() => particle.remove(), 800);
+            }
+        });
+    </script>
 </body>
 </html>

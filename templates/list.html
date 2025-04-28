@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>급변화 리스트</title>
+    <link rel="stylesheet" href="/static/static.css">
+    <style>
+        /* 스타일 업데이트 */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #79cfd77b;
+            margin: 0;
+            padding: 20px;
+            cursor: pointer;
+            height: 100vh; /* 화면 전체 높이 */
+        }
+    
+        .container {
+            max-width: 1000px; /* 컨테이너의 넓이를 더 늘림 */
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+    
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+        }
+    
+        .form-group {
+    margin-bottom: 20px;
+        }
+
+/* 라벨 스타일 */
+        .custom-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            font-size: 15px;
+            color: #333;
+        }
+
+        /* 드롭다운 컨테이너 */
+        .custom-select-container {
+            position: relative;
+            width: 100%;
+            max-width: 300px;
+        }
+
+        /* 드롭다운 기본 스타일 */
+        .custom-select {
+            width: 100%;
+            padding: 10px 12px;
+            font-size: 15px;
+            color: #555;
+            background: #f9f9f9;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            appearance: none; /* 기본 드롭다운 화살표 제거 */
+            -moz-appearance: none;
+            -webkit-appearance: none;
+            cursor: pointer;
+        }
+
+        /* 드롭다운에 커스텀 화살표 추가 */
+        .custom-select-container::after {
+            /* content: '▼'; */
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #555;
+            pointer-events: none; /* 화살표 클릭 방지 */
+        }
+
+        /* 드롭다운 포커스 스타일 */
+        .custom-select:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 4px rgba(0, 123, 255, 0.5);
+        }
+
+        /* 버튼 스타일 */
+        .custom-btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .custom-btn:hover {
+            background-color: #0056b3;
+        }
+
+        .custom-btn:focus {
+            outline: none;
+            box-shadow: 0 0 4px rgba(0, 123, 255, 0.5);
+        }
+    
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+    
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            font-size: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+    
+        input[type="text"]:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 8px rgba(0, 123, 255, 0.4);
+            outline: none;
+        }
+    
+        button {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            color: white;
+            background-color: #00c3ff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+    
+        button:hover {
+            background-color: #0056b3;
+        }
+    
+        #result {
+            margin-top: 20px;
+            overflow-x: auto; /* 가로 스크롤 가능 */
+        }
+    
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 14px; /* 테이블 글자 크기 축소 */
+            overflow-x: auto; /* 긴 테이블의 경우 스크롤 가능 */
+        }
+    
+        th, td {
+            border: 2px solid #ddd;
+            padding: 6px;                 /* 패딩도 살짝 줄이면 밀집감 있음 */
+            text-align: center;
+            word-break: break-word;
+            white-space: normal;
+            max-width: 200px;
+            font-size: 12px;              /* 👈 글자 크기 줄임 */
+        }
+    
+        th {
+            background-color: #f4f4f4;
+            font-weight: bold;
+            font-size: 13px; /* 테이블 헤더 글자 크기 축소 */
+        }
+    
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        .spinner-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 10px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+            /* 클릭 애니메이션을 위한 스타일 */
+        .click-firework {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: rgba(0, 183, 255, 0.733);
+            border-radius: 50%;
+            animation: firework 0.8s ease-out forwards;
+            pointer-events: none;
+        }
+
+        /* 애니메이션 keyframes */
+        @keyframes firework {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(var(--x), var(--y)) scale(0.5);
+                opacity: 0;
+            }
+        }
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: #d3d3d3;
+            border-radius: 5px;
+            outline: none;
+            appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #007bff;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 0 2px #000;
+        }
+
+        .slider-value {
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+            color: #007bff;
+        }
+
+        select[multiple] {
+            height: auto;
+            min-height: 140px;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>항목별 급변화한 기업 리스트</h1>
+        <form id="data-form">
+            <div class="form-group">
+                <label for="binance-input" class="custom-label">재무제표종류를 선택해주세요</label>
+                <div class="custom-select-container">
+                    <select id="binance-input" name="binance" required class="custom-select">
+                        <option value="" disabled selected>재무제표종류를 선택해주세요</option>
+                        <option value="재무상태표">재무상태표</option>
+                        <option value="손익계산서">손익계산서</option>
+                        <option value="현금흐름표">현금흐름표</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="report-input" class="custom-label">(전년동기 비교) 보고서 종류를 선택해주세요</label>
+                <div class="custom-select-container">
+                    <select id="report-input" name="report" required class="custom-select">
+                        <option value="" disabled selected>보고서 종류를 선택해주세요</option>
+                        <option value="1분기보고서">1분기보고서</option>
+                        <option value="반기보고서">반기보고서</option>
+                        <option value="3분기보고서">3분기보고서</option>
+                        <option value="사업보고서">사업보고서</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="year-input" class='custom-label'>연도를 선택해주세요</label>
+                <div class = 'custom-select-container'>
+                    <select id = 'year-input' name ='year' required class = 'custom-select'>
+                        <option value ="" disabled selected>연도를 선택해주세요</option>
+                        <option value ='2019'>2019</option>
+                        <option value ='2020'>2020</option>
+                        <option value ='2021'>2021</option>
+                        <option value ='2022'>2022</option>
+                        <option value ='2023'>2023</option>
+                        <option value ='2024'>2024</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="statement-input" class='custom-label'>재무제표명을 선택해주세요</label>
+                <div class = 'custom-select-container'>
+                    <select id = 'statement-input' name ='statement' required class = 'custom-select'>
+                        <option value ="" disabled selected>재무제표명을 선택해주세요</option>
+                        <option value ='별도재무제표'>별도재무제표</option>
+                        <option value ='연결재무제표'>연결재무제표</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="independent-report-input" class="custom-label">(선택시 동년 다른 분기비교) 비교할 보고서를 선택해주세요</label>
+                <div class="custom-select-container">
+                    <select id="independent-report-input" name="independent-report" class="custom-select">
+                        <option value="" disabled selected>(선택사항) 보고서 종류를 선택해주세요</option>
+                        <option value="1분기보고서">1분기보고서</option>
+                        <option value="반기보고서">반기보고서</option>
+                        <option value="3분기보고서">3분기보고서</option>
+                        <option value="사업보고서">사업보고서</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="independent-item-input" class="custom-label">보고싶은 항목명을 선택해주세요</label>
+                <div class="custom-select-container" style="max-height: 180px; overflow-y: auto;">
+                  <select id="independent-item-input" name="item" multiple required class="custom-select" size="8">
+                    <option value="매출액">매출액</option>
+                    <option value="영업이익">영업이익</option>
+                    <option value="당기순이익">당기순이익</option>
+                    <option value="자산총계">자산총계</option>
+                    <option value="부채총계">부채총계</option>
+                    <option value="자본총계">자본총계</option>
+                    <option value="영업활동현금흐름">영업활동현금흐름</option>
+                    <option value="투자활동현금흐름">투자활동현금흐름</option>
+                    <option value="재무활동현금흐름">재무활동현금흐름</option>
+                  </select>
+                </div>
+              </div>
+              <form id="data-form">
+                <!-- 기타 필드 생략 -->
+                <div class="form-group">
+                    <label for="rate-change-input" class="custom-label">변화율 기준을 선택해주세요 (%)</label>
+                    <div class="custom-select-container">
+                        <input type="range" id="rate-change-input" name="rate-change" min="10" max="50" step="10" value="10">
+                        <div class="slider-value"><span id="rate-change-value">10</span>% 이상</div>
+                    </div>
+                </div>
+            <button type="submit" id="submit-btn" class="custom-btn">조회</button>
+            <button type="button" id="download-csv-btn" class="custom-btn" style="margin-top: 18px;">엑셀 다운로드</button>
+
+        </form>
+        
+        <div id="results"></div>
+    </div>
+    <script>
+        document.getElementById("rate-change-input").addEventListener("input", function () {
+            document.getElementById("rate-change-value").textContent = this.value;
+        });
+
+        document.getElementById("data-form").addEventListener("submit", async function (e) {
+            e.preventDefault();
+            const year = document.getElementById("year-input").value;
+            const rateChange = document.getElementById("rate-change-input").value;
+            const statementType = document.getElementById("statement-input").value;
+            const report = document.getElementById("report-input").value;
+            const compareReport = document.getElementById("independent-report-input").value;
+            const binanceType = document.getElementById("binance-input").value;
+
+            const itemSelect = document.getElementById("independent-item-input");
+            const selectedItems = Array.from(itemSelect.selectedOptions).map(opt => opt.value);
+
+            const resultContainer = document.getElementById("results");
+            resultContainer.innerHTML = '<div class="spinner-container"><div class="spinner"></div><p>분석 중입니다...</p></div>';
+
+            const url = new URL("/rate-change-analysis", window.location.origin);
+            url.searchParams.append("selected_year", year);
+            url.searchParams.append("selected_rate_change", rateChange);
+            url.searchParams.append("selected_financial_statement", binanceType);
+            url.searchParams.append("selected_report", report);
+            if (compareReport) url.searchParams.append("compare_report", compareReport);
+            url.searchParams.append("selected_statement_type", statementType);
+            selectedItems.forEach(item => url.searchParams.append("selected_items", item));
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                resultContainer.innerHTML = '';
+
+                if (data.message) {
+                    resultContainer.innerHTML = `<p>${data.message}</p>`;
+                    return;
+                if (!data.results) {
+                    resultContainer.innerHTML = '<p>결과 데이터가 없습니다.</p>';
+                    return;
+                }
+                }
+                const dynamicCols = Object.keys(data.results[0]).filter(
+                    key => !['color'].includes(key)
+                );
+                const table = document.createElement("table");
+                const header = document.createElement("tr");
+                // const columns = ["회사명", "항목명", "이전값", "현재값", "변화율"];
+                dynamicCols.forEach(col => {
+                    const th = document.createElement("th");
+                    th.textContent = col;
+                    header.appendChild(th);
+                });
+                table.appendChild(header);
+
+                data.results.forEach(row => {
+                    const tr = document.createElement("tr");
+                    dynamicCols.forEach(col => {
+                        const td = document.createElement("td");
+                        td.textContent = row[col];
+                        if (col === '변화율') td.style.color = row['color'];
+                        tr.appendChild(td);
+                    });
+                    table.appendChild(tr);
+                });
+
+                resultContainer.appendChild(table);
+            } catch (error) {
+                resultContainer.innerHTML = `<p>오류 발생: ${error.message}</p>`;
+            }
+        });
+        document.getElementById("download-csv-btn").addEventListener("click", () => {
+            const table = document.querySelector("#results table");
+            if (!table) {
+                alert("다운로드할 데이터가 없습니다.");
+                return;
+            }
+
+            let csv = "";
+            const rows = table.querySelectorAll("tr");
+            rows.forEach(row => {
+                const cols = row.querySelectorAll("th, td");
+                const rowData = Array.from(cols).map(col => `"${col.textContent.trim()}"`).join(",");
+                csv += rowData + "\n";
+            });
+
+            const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `급변화회사리스트_${new Date().toISOString().slice(0, 10)}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+    </script>
+</body>
+</html>
+
+
+
+
+    

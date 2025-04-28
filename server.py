@@ -1,8 +1,10 @@
-from fastapi import FastAPI, Query
-from typing import List
+from fastapi import FastAPI, Query, HTTPException, status, Depends
+from typing import List, Optional, Union
 from fastapi.responses import JSONResponse, HTMLResponse    
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from typing import List
 import pandas as pd
 import pymysql
 from dotenv import load_dotenv
@@ -15,22 +17,38 @@ import pandas as pd
 
 
 
+
 # 환경 변수 로드
 load_dotenv('profile.env')
 
 # 데이터베이스 연결 정보
-db_user = os.getenv("DB_USER")
-db_password = os.getenv("DB_PASSWORD")
-db_host = os.getenv("DB_HOST")
-db_port = int(os.getenv("DB_PORT", 3306))  # 기본 포트 3306
-db_name = os.getenv("DB_NAME")
+DB_CONFIG = {
+    "user": os.getenv("DB_USER"),
+    "password": os.getenv("DB_PASSWORD"),
+    "host": os.getenv("DB_HOST"),
+    "port": int(os.getenv("DB_PORT", 3306)),
+    "database": os.getenv("DB_NAME"),
+    "charset": "utf8"
+}
 
-# 환경 변수 확인
-if not all([db_user, db_password, db_host, db_name]):
-    raise EnvironmentError("필수 환경 변수가 설정되지 않았습니다. .env 파일을 확인하세요.")
 
 # FastAPI 인스턴스 생성
 app = FastAPI()
+security = HTTPBasic()
+
+
+
+VALID_USERNAME = "thesignal"
+VALID_PASSWORD = "sporbiz1234"
+
+# 인증 함수 정의
+def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
+    if credentials.username != VALID_USERNAME or credentials.password != VALID_PASSWORD:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+            headers={"WWW-Authenticate": "Basic"},
+        )
 
 @app.get("/", response_class=HTMLResponse)
 async def home():
@@ -40,11 +58,23 @@ async def home():
     return templates.TemplateResponse("home.html", {"request": {}})
 
 @app.get("/dash", response_class=HTMLResponse)
-async def root():
+async def root(credentials: HTTPBasicCredentials = Depends(authenticate)):
     """
-    HTML 페이지 반환 (index.html)
+    HTML 페이지 반환 (index.html) - 인증 필요
     """
     return templates.TemplateResponse("index.html", {"request": {}})
+
+@app.get("/list", response_class=HTMLResponse)
+async def root(credentials: HTTPBasicCredentials = Depends(authenticate)):
+    """
+    HTML 페이지 반환 (index.html) - 인증 필요
+    """
+    return templates.TemplateResponse("list.html", {"request": {}})
+# async def root():
+#     """
+#     HTML 페이지 반환 (index.html)
+#     """
+#     return templates.TemplateResponse("index.html", {"request": {}})
 
 # 템플릿 및 정적 파일 설정
 templates_dir = "templates"
@@ -58,6 +88,8 @@ if not os.path.exists(static_dir):
 templates = Jinja2Templates(directory=templates_dir)
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
+    
+
 
 @app.get("/company-options")
 async def get_company_options():
@@ -65,20 +97,15 @@ async def get_company_options():
     데이터베이스에서 고유한 회사명 가져오기
     """
     try:
-        connection = pymysql.connect(
-            user=db_user,
-            password=db_password,
-            host=db_host,
-            port=db_port,
-            database=db_name,
-            charset='utf8'
-        )
+        connection = pymysql.connect(**DB_CONFIG)
         query = """
         SELECT DISTINCT 회사명 
         FROM (
             SELECT 회사명 FROM BalanceSheet
             UNION 
             SELECT 회사명 FROM IncomeStatement
+            UNION
+            SELECT 회사명 FROM CashFlow
         ) AS combined
         """
         df = pd.read_sql(query, connection)
@@ -97,20 +124,15 @@ async def get_statement_options():
     데이터베이스에서 고유한 재무제표명 가져오기
     """
     try:
-        connection = pymysql.connect(
-            user=db_user,
-            password=db_password,
-            host=db_host,
-            port=db_port,
-            database=db_name,
-            charset='utf8'
-        )
+        connection = pymysql.connect(**DB_CONFIG)
         query = """
         SELECT DISTINCT 재무제표명 
         FROM (
             SELECT 재무제표명 FROM BalanceSheet
             UNION 
             SELECT 재무제표명 FROM IncomeStatement
+            UNION
+            SELECT 재무제표명 FROM CashFlow 
         ) AS combined
         """
         df = pd.read_sql(query, connection)
@@ -121,6 +143,68 @@ async def get_statement_options():
 
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=500)
+    
+@app.get("/item-options")
+async def get_item_options(
+    selected_company: str = Query(...),
+    selected_statement_type: str = Query(...),
+    selected_report_type: str = Query(...),
+    selected_binance_type: str = Query(...)
+):
+    try:
+        connection = pymysql.connect(**DB_CONFIG)
+        if selected_binance_type == "손익계산서":
+                query = """
+                    SELECT DISTINCT 항목명
+                    FROM IncomeStatement
+                    WHERE 회사명 = %s
+                    AND 재무제표명 = %s
+                    AND 보고서종류 = %s
+                    AND 재무제표종류 = %s
+                    AND 항목명 IS NOT NULL
+                    AND 항목명 != ''
+                    ORDER BY 항목명
+                """
+        elif selected_binance_type == "재무상태표":
+                query = """
+                    SELECT DISTINCT 항목명
+                    FROM BalanceSheet
+                    WHERE 회사명 = %s
+                    AND 재무제표명 = %s
+                    AND 보고서종류 = %s
+                    AND 재무제표종류 = %s
+                    AND 항목명 IS NOT NULL
+                    AND 항목명 != ''
+                    ORDER BY 항목명
+                """
+        elif selected_binance_type == "현금흐름표":
+                query = """
+                    SELECT DISTINCT 항목명
+                    FROM CashFlow
+                    WHERE 회사명 = %s
+                    AND 재무제표명 = %s
+                    AND 보고서종류 = %s
+                    AND 재무제표종류 = %s
+                    AND 항목명 IN(
+                        '영업활동현금흐름',
+                        '배당금의지급',
+                        '투자활동현금흐름',
+                        '재무활동현금흐름',
+                        '자기주식의취득',
+                        '현금의증감',
+                        '유상증자'
+                    )
+                    ORDER BY 항목명
+                """
+        else:
+            return JSONResponse(content={"error": "유효하지 않은 재무제표종류입니다."}, status_code=400)
+        df = pd.read_sql(query, connection, params=(selected_company, selected_statement_type, selected_report_type, selected_binance_type))
+        connection.close()
+
+        item_options = [{'label': item, 'value': item} for item in df['항목명'].unique()]
+        return JSONResponse(content={"item_options": item_options})
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)}, status_code=500)
 
 @app.get("/report-options")
 async def get_report_options():
@@ -128,20 +212,15 @@ async def get_report_options():
     보고서종류
     '''
     try:
-        connection = pymysql.connect(
-            user=db_user,
-            password=db_password,
-            host=db_host,
-            port=db_port,
-            database=db_name,
-            charset='utf8'
-        )
+        connection = pymysql.connect(**DB_CONFIG)
         query = """
         SELECT DISTINCT 보고서종류 
         FROM (
             SELECT 보고서종류 FROM BalanceSheet
             UNION 
             SELECT 보고서종류 FROM IncomeStatement
+            UNION
+            SELECT 보고서종류 FROM CashFlow
         ) AS combined
         """
         df = pd.read_sql(query, connection)
@@ -153,6 +232,32 @@ async def get_report_options():
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
+@app.get("/binance-options")
+async def get_binance_options():
+    '''
+    재무제표종류(손익, 재무, 손익)
+    '''
+    try:
+        connection = pymysql.connect(**DB_CONFIG)
+        query = """
+        SELECT DISTINCT 재무제표종류
+        FROM (
+            SELECT 재무제표종류 FROM BalanceSheet
+            UNION 
+            SELECT 재무제표종류 FROM IncomeStatement
+            UNION
+            SELECT 재무제표종류 FROM CashFlow
+        ) AS combined
+        """
+        df = pd.read_sql(query, connection)
+        connection.close()
+
+        binance_options = [{'label': binance, 'value': binance} for binance in df['재무제표종류'].unique()]
+        return JSONResponse(content={"binance_options": binance_options})
+    
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
 
 
 @app.get("/financial-data")
@@ -160,227 +265,125 @@ async def get_financial_data(
     selected_company: str = Query(..., description="선택한 회사명"),
     selected_statement_type: str = Query(..., description="선택한 재무제표명"),
     selected_report_type: str = Query(..., description='선택한 보고서'),
+    aggregation: str = Query("quarterly", description="'quarterly' 또는 'cumulative' 중 선택"),
+    binance1: Optional[str] = Query(None, description='재무제표종류1'),
+    item1: List[str] = Query([], description='항목명1'),
+    binance2: Optional[str] = Query(None, description='재무제표종류2'),
+    item2: List[str] = Query([], description='항목명2'),
+    binance3: Optional[str] = Query(None, description='재무제표종류3'),
+    item3: List[str] = Query([], description='항목명3'),
 ):
     
-    
     report_mapping = {
-        "1분기보고서": [3, 1],
-        "반기보고서": [6, 2],
-        "3분기보고서": [9, 3],
-        "사업보고서": [12, 4]
+        "1분기보고서": [3, "1Q"],
+        "반기보고서": [6, "2Q"],
+        "3분기보고서": [9, "3Q"],
+        "사업보고서": [12, "4Q"]
     }
-    
-    # 사용자가 선택한 보고서 종류에 따른 결산월 가져오기
-    selected_months = report_mapping.get(selected_report_type)
-    if not selected_months:
-        return {"error": "유효하지 않은 보고서 종류입니다. 1분기, 반기, 3분기, 사업보고서 중 하나를 선택하세요."}
-    
-    quarter_suffix = f"{selected_months[1]}Q"
+
+    if selected_report_type not in report_mapping:
+        return JSONResponse(content={"error": "유효하지 않은 보고서 종류입니다."}, status_code=400)
+
+    closing_month, quarter_suffix = report_mapping[selected_report_type]
+
+    def get_column_expression(binance_type: str, report_type: str, is_cumulative: bool) -> str:
+        if binance_type == "손익계산서":
+            if is_cumulative:
+                return {
+                    "반기보고서": "당기_반기_누적",
+                    "3분기보고서": "당기_3분기_누적"
+                }.get(report_type, "당기")
+            else:
+                return {
+                    "1분기보고서": "CASE WHEN 당기_1분기_3개월 IS NOT NULL THEN 당기_1분기_3개월 ELSE 당기_1분기말 END",
+                    "반기보고서": "CASE WHEN 당기_반기_3개월 IS NOT NULL THEN 당기_반기_3개월 ELSE 당기_반기말 END",
+                    "3분기보고서": "CASE WHEN 당기_3분기_3개월 IS NOT NULL THEN 당기_3분기_3개월 ELSE 당기_3분기말 END",
+                    "사업보고서": "당기"
+                }.get(report_type, "당기")
+
+        elif binance_type == "재무상태표":
+            return {
+                "1분기보고서": "당기_1분기말",
+                "반기보고서": "당기_반기말",
+                "3분기보고서": "당기_3분기말",
+                "사업보고서": "당기"
+            }.get(report_type, "당기")
+
+        elif binance_type == "현금흐름표":
+            return {
+                "1분기보고서": "CASE WHEN 당기_1분기 IS NOT NULL THEN 당기_1분기 ELSE 당기_1분기말 END",
+                "반기보고서": "CASE WHEN 당기_반기 IS NOT NULL THEN 당기_반기 ELSE 당기_반기말 END",
+                "3분기보고서": "CASE WHEN 당기_3분기 IS NOT NULL THEN 당기_3분기 ELSE 당기_3분기말 END",
+                "사업보고서": "당기"
+            }.get(report_type, "당기")
+        else:
+            raise ValueError("Invalid binance_type")
+
+    year_columns_template = lambda col_expr: ",\n".join([
+        f"FORMAT(MAX(CASE WHEN 결산기준일 = {year} AND 결산월 = {closing_month} THEN {col_expr} END), 0) AS '{str(year)[2:]}.{quarter_suffix}'"
+        for year in range(2019, 2025)
+    ])
+
+    table_mapping = {
+        "손익계산서": "IncomeStatement",
+        "재무상태표": "BalanceSheet",
+        "현금흐름표": "CashFlow"
+    }
+
+    binance_item_pairs = [
+        (binance1, item1),
+        (binance2, item2),
+        (binance3, item3)
+    ]    
+    valid_pairs = [(b, i) for b, items in binance_item_pairs for i in items if b and i]
+    if not valid_pairs:
+        return JSONResponse(content={"error": "최소 1개의 재무제표종류와 항목명을 선택해야 합니다."}, status_code=400)
+
     stock_code_sql = """
         SELECT DISTINCT CAST(종목코드 AS CHAR) AS 종목코드
         FROM IncomeStatement
         WHERE 회사명 = %s;
     """
 
-
-    """
-    사용자가 선택한 회사와 재무제표명을 기반으로 시계열 데이터 반환
-    """
-    sql = f"""
-WITH 차입금_합계 AS (
-    SELECT 
-        보고서종류,
-        결산기준일,
-        결산월,
-        SUM(CASE 
-            WHEN 보고서종류 = '사업보고서' THEN 당기
-            WHEN 보고서종류 = '3분기보고서' THEN 당기_3분기말
-            WHEN 보고서종류 = '반기보고서' THEN 당기_반기말
-            WHEN 보고서종류 = '1분기보고서' THEN 당기_1분기말
-        END) AS 총차입금
-    FROM BalanceSheet
-    WHERE 회사명 = %s
-        AND 재무제표명 = '연결재무제표'
-        AND (
-            (항목명 LIKE '%%리스%%' 
-            OR 항목명 LIKE '%%차입금%%' 
-            OR 항목명 LIKE '%%금융부채%%' 
-            OR 항목명 LIKE '%%사채%%'
-            OR 항목명 LIKE '%%차입%%')
-            AND 항목명 NOT LIKE '%%비금융부채%%'
-        )
-    GROUP BY 보고서종류, 결산기준일, 결산월
-    )
-    SELECT 항목명,
-        FORMAT(MAX(CASE WHEN 결산기준일 = 2019 AND 결산월 = %s THEN 
-                    CASE 
-                        WHEN 보고서종류 = '사업보고서' THEN 당기
-                        WHEN 보고서종류 = '3분기보고서' THEN 당기_3분기_3개월
-                        WHEN 보고서종류 = '반기보고서' THEN 당기_반기_3개월
-                        WHEN 보고서종류 = '1분기보고서' THEN 당기_1분기_3개월
-                    END
-                END), 0) AS '19.{quarter_suffix}',
-        FORMAT(MAX(CASE WHEN 결산기준일 = 2020 AND 결산월 = %s THEN 
-                    CASE 
-                        WHEN 보고서종류 = '사업보고서' THEN 당기
-                        WHEN 보고서종류 = '3분기보고서' THEN 당기_3분기_3개월
-                        WHEN 보고서종류 = '반기보고서' THEN 당기_반기_3개월
-                        WHEN 보고서종류 = '1분기보고서' THEN 당기_1분기_3개월
-                    END
-                END), 0) AS '20.{quarter_suffix}',
-        FORMAT(MAX(CASE WHEN 결산기준일 = 2021 AND 결산월 = %s THEN 
-                    CASE 
-                        WHEN 보고서종류 = '사업보고서' THEN 당기
-                        WHEN 보고서종류 = '3분기보고서' THEN 당기_3분기_3개월
-                        WHEN 보고서종류 = '반기보고서' THEN 당기_반기_3개월
-                        WHEN 보고서종류 = '1분기보고서' THEN 당기_1분기_3개월
-                    END
-                END), 0) AS '21.{quarter_suffix}',
-        FORMAT(MAX(CASE WHEN 결산기준일 = 2022 AND 결산월 = %s THEN 
-                    CASE 
-                        WHEN 보고서종류 = '사업보고서' THEN 당기
-                        WHEN 보고서종류 = '3분기보고서' THEN 당기_3분기_3개월
-                        WHEN 보고서종류 = '반기보고서' THEN 당기_반기_3개월
-                        WHEN 보고서종류 = '1분기보고서' THEN 당기_1분기_3개월
-                    END
-                END), 0) AS '22.{quarter_suffix}',
-        FORMAT(MAX(CASE WHEN 결산기준일 = 2023 AND 결산월 = %s THEN 
-                    CASE 
-                        WHEN 보고서종류 = '사업보고서' THEN 당기
-                        WHEN 보고서종류 = '3분기보고서' THEN 당기_3분기_3개월
-                        WHEN 보고서종류 = '반기보고서' THEN 당기_반기_3개월
-                        WHEN 보고서종류 = '1분기보고서' THEN 당기_1분기_3개월
-                    END
-                END), 0) AS '23.{quarter_suffix}',
-        FORMAT(MAX(CASE WHEN 결산기준일 = 2024 AND 결산월 = %s THEN 
-                    CASE 
-                        WHEN 보고서종류 = '사업보고서' THEN 당기
-                        WHEN 보고서종류 = '3분기보고서' THEN 당기_3분기_3개월
-                        WHEN 보고서종류 = '반기보고서' THEN 당기_반기_3개월
-                        WHEN 보고서종류 = '1분기보고서' THEN 당기_1분기_3개월
-                    END
-                END), 0) AS '24.{quarter_suffix}',
-        FORMAT(MAX(CASE WHEN 결산기준일 = 2023 AND 결산월 = 9 THEN 
-                    CASE 
-                        WHEN 보고서종류 = '3분기보고서' THEN 당기_3분기_누적
-                    END
-                END), 0) AS '23.3Q 누적',
-        FORMAT(MAX(CASE WHEN 결산기준일 = 2024 AND 결산월 = 9 THEN 
-                    CASE 
-                        WHEN 보고서종류 = '3분기보고서' THEN 당기_3분기_누적
-                    END
-                END), 0) AS '24.3Q 누적'
-        
-    FROM IncomeStatement
-    WHERE 회사명 = %s
-        AND 재무제표명 = %s
-        AND 항목명 IN ('매출액', '영업이익', '당기순이익')
-    GROUP BY 항목명
-    UNION ALL 
-    SELECT 항목명,
-        FORMAT(MAX(CASE WHEN 결산기준일 = 2019 AND 결산월 = %s THEN 
-                    CASE 
-                        WHEN 보고서종류 = '사업보고서' THEN 당기
-                        WHEN 보고서종류 = '3분기보고서' THEN 당기_3분기말
-                        WHEN 보고서종류 = '반기보고서' THEN 당기_반기말
-                        WHEN 보고서종류 = '1분기보고서' THEN 당기_1분기말
-                    END
-                END), 0) AS '19.{quarter_suffix}',
-        FORMAT(MAX(CASE WHEN 결산기준일 = 2020 AND 결산월 = %s THEN 
-                    CASE 
-                        WHEN 보고서종류 = '사업보고서' THEN 당기
-                        WHEN 보고서종류 = '3분기보고서' THEN 당기_3분기말
-                        WHEN 보고서종류 = '반기보고서' THEN 당기_반기말
-                        WHEN 보고서종류 = '1분기보고서' THEN 당기_1분기말
-                    END
-                END), 0) AS '20.{quarter_suffix}',
-        FORMAT(MAX(CASE WHEN 결산기준일 = 2021 AND 결산월 = %s THEN 
-                    CASE 
-                        WHEN 보고서종류 = '사업보고서' THEN 당기
-                        WHEN 보고서종류 = '3분기보고서' THEN 당기_3분기말
-                        WHEN 보고서종류 = '반기보고서' THEN 당기_반기말
-                        WHEN 보고서종류 = '1분기보고서' THEN 당기_1분기말
-                    END
-                END), 0) AS '21.{quarter_suffix}',
-        FORMAT(MAX(CASE WHEN 결산기준일 = 2022 AND 결산월 = %s THEN 
-                    CASE 
-                        WHEN 보고서종류 = '사업보고서' THEN 당기
-                        WHEN 보고서종류 = '3분기보고서' THEN 당기_3분기말
-                        WHEN 보고서종류 = '반기보고서' THEN 당기_반기말
-                        WHEN 보고서종류 = '1분기보고서' THEN 당기_1분기말
-                    END
-                END), 0) AS '22.{quarter_suffix}',
-        FORMAT(MAX(CASE WHEN 결산기준일 = 2023 AND 결산월 = %s THEN 
-                    CASE 
-                        WHEN 보고서종류 = '사업보고서' THEN 당기
-                        WHEN 보고서종류 = '3분기보고서' THEN 당기_3분기말
-                        WHEN 보고서종류 = '반기보고서' THEN 당기_반기말
-                        WHEN 보고서종류 = '1분기보고서' THEN 당기_1분기말
-                    END
-                END), 0) AS '23.{quarter_suffix}',
-        FORMAT(MAX(CASE WHEN 결산기준일 = 2024 AND 결산월 = %s THEN 
-                    CASE 
-                        WHEN 보고서종류 = '사업보고서' THEN 당기
-                        WHEN 보고서종류 = '3분기보고서' THEN 당기_3분기말
-                        WHEN 보고서종류 = '반기보고서' THEN 당기_반기말
-                        WHEN 보고서종류 = '1분기보고서' THEN 당기_1분기말
-                    END
-                END), 0) AS '24.{quarter_suffix}',
-        FORMAT(MAX(CASE WHEN 결산기준일 = 2023 AND 결산월 = 9 THEN 
-                    CASE 
-                        WHEN 보고서종류 = '3분기보고서' THEN 당기_3분기말
-                    END
-                END), 0) AS '23.3Q 누적',
-        FORMAT(MAX(CASE WHEN 결산기준일 = 2024 AND 결산월 = 9 THEN 
-                    CASE 
-                        WHEN 보고서종류 = '3분기보고서' THEN 당기_3분기말
-                    END
-                END), 0) AS '24.3Q 누적'
-    FROM BalanceSheet
-    WHERE 회사명 = %s
-        AND 재무제표명 = %s
-        AND 항목명 IN ('자산총계', '부채총계', '자본총계', '현금및현금성자산')
-    GROUP BY 항목명
-    UNION ALL
-    SELECT '총차입금' AS 항목명,
-        FORMAT(MAX(CASE WHEN 결산기준일 = 2019 AND 결산월 = %s THEN 총차입금 END), 0) AS '19.{quarter_suffix}',
-        FORMAT(MAX(CASE WHEN 결산기준일 = 2020 AND 결산월 = %s THEN 총차입금 END), 0) AS '20.{quarter_suffix}',
-        FORMAT(MAX(CASE WHEN 결산기준일 = 2021 AND 결산월 = %s THEN 총차입금 END), 0) AS '21.{quarter_suffix}',
-        FORMAT(MAX(CASE WHEN 결산기준일 = 2022 AND 결산월 = %s THEN 총차입금 END), 0) AS '22.{quarter_suffix}',
-        FORMAT(MAX(CASE WHEN 결산기준일 = 2023 AND 결산월 = %s THEN 총차입금 END), 0) AS '23.{quarter_suffix}',
-        FORMAT(MAX(CASE WHEN 결산기준일 = 2024 AND 결산월 = %s THEN 총차입금 END), 0) AS '24.{quarter_suffix}',
-        FORMAT(MAX(CASE WHEN 결산기준일 = 2023 AND 결산월 = 9 THEN 총차입금 END), 0) AS '23.3Q 누적',
-        FORMAT(MAX(CASE WHEN 결산기준일 = 2024 AND 결산월 = 9 THEN 총차입금 END), 0) AS '24.3Q 누적'
-    FROM 차입금_합계
-    ORDER BY FIELD(항목명, '매출액', '영업이익', '당기순이익', '자산총계', '부채총계', '자본총계', '총차입금', '현금및현금성자산');
-    """
-
-
-    # 드롭다운 하나 추가해서, 본래 시계열 데이터 하던거 추가하기
-
     try:
-        connection = pymysql.connect(
-            user=db_user,
-            password=db_password,
-            host=db_host,
-            port=db_port,
-            database=db_name,
-            charset='utf8'
-        )
+        connection = pymysql.connect(**DB_CONFIG)
         stock_code_df = pd.read_sql(stock_code_sql, connection, params=(selected_company))
         if stock_code_df.empty:
             return JSONResponse(content={"error": "종목코드를 찾을 수 없습니다."}, status_code=404)
         stock_code = stock_code_df["종목코드"].iloc[0]
 
-        df = pd.read_sql(sql, connection, params=(selected_company, selected_months[0], selected_months[0], selected_months[0], selected_months[0], selected_months[0], selected_months[0], selected_company, selected_statement_type, selected_months[0], selected_months[0], selected_months[0], selected_months[0], selected_months[0], selected_months[0], selected_company, selected_statement_type,
-                                                  selected_months[0], selected_months[0], selected_months[0], selected_months[0], selected_months[0], selected_months[0]))
+        dfs = []
+        for binance, item in valid_pairs:
+            table_name = table_mapping.get(binance)
+            if not table_name:
+                continue
+            column_expr = get_column_expression(binance, selected_report_type, aggregation == "cumulative")
+            year_columns = year_columns_template(column_expr)
+            sql = f"""
+                SELECT 항목명,\n{year_columns}
+                FROM {table_name}
+                WHERE 회사명 = %s
+                  AND 재무제표명 = %s
+                  AND 보고서종류 = %s
+                  AND 재무제표종류 = %s
+                  AND 항목명 = %s
+                GROUP BY 항목명
+            """
+            df = pd.read_sql(sql, connection, params=(selected_company, selected_statement_type, selected_report_type, binance, item))
+            if not df.empty:
+                dfs.append(df)
+
         connection.close()
+        if not dfs:
+            return JSONResponse(content={"message": "데이터가 없습니다."}, status_code=404)
+
+        merged_df = pd.concat(dfs, ignore_index=True)
 
 
 
         # 데이터 처리 및 시각화 준비
-        if df.empty:
-            return JSONResponse(content={"message": "데이터가 없습니다."}, status_code=404)
+        # if df.empty:
+        #     return JSONResponse(content={"message": "데이터가 없습니다."}, status_code=404)
         
         def calculate_change(current, previous):
             try:
@@ -394,21 +397,18 @@ WITH 차입금_합계 AS (
         def format_change(change):
             if pd.notna(change):
                 if change > 0:
-                    return f"({change:.1f}%) ▲", 'red'  # 상승
+                    return f"(▲ {change:.1f}%)", 'red'  # 상승
                 elif change < 0:
-                    return f"({change:.1f}%) ▼", 'blue'  # 하락
+                    return f"(▼ {change:.1f}%)", 'blue'  # 하락
             return '-', 'black'  # 변화 없음
         
-        def clean_and_convert(series):
-            return series.str.replace(",", "").astype(float)
         
         def reclean_and_reconvert(series):
             return series.str.replace(",", "").str.replace("%", "").astype(float)
 
 
         # 쉼표를 다시 추가하는 함수
-        def add_commas(value):
-            return f"{value:,}" if isinstance(value, (float, int)) and not pd.isna(value) else "-"
+
         
         def get_stock_price(stock_code):
             try:
@@ -419,7 +419,7 @@ WITH 차입금_합계 AS (
                 return stock_data['Close'].values[0]
             except Exception as e:
                 print(f"주가 데이터 없음: {str(e)}")
-                return f"주가 조회 오류: {str(e)}"
+                return f"주가 조회 오류"
 
         def get_market_cap(stock_code):
             try:
@@ -433,7 +433,7 @@ WITH 차입금_합계 AS (
                 return stock_data["시가총액"].values[0]
             except Exception as e:
                 print(f"시총 데이터 없음: {str(e)}")
-                return f"시가총액 조회 오류: {str(e)}"
+                return f"시가총액 조회 오류"
         
         def format_market_price(market_price):
             try:
@@ -453,120 +453,222 @@ WITH 차입금_합계 AS (
             
         stock_price = get_stock_price(stock_code)
         market_cap = get_market_cap(stock_code)  
-        formatted_market_cap = format_market_price(market_cap)
+        formatted_market_cap = format_market_price(market_cap)            
+        today_today = datetime.datetime.today().strftime('%m월 %d일')
+
+        ref_col = merged_df.columns[1]  # 첫 번째 분기 열 기준
 
         
-        if '총차입금' in df['항목명'].values and '현금및현금성자산' in df['항목명'].values:
-            try:
-                debt_row = clean_and_convert(df[df['항목명'] == '총차입금'].iloc[0, 1:])
-                cash_row = clean_and_convert(df[df['항목명'] == '현금및현금성자산'].iloc[0, 1:])
-                pury_row = []
-                for debt,cash in zip(debt_row, cash_row):
-                    try:
-                        pury = (debt - cash) if pd.notna(debt) and pd.notna(cash) else None
-                        pury_row.append(int(pury) if pury is not None else '-')
-                    except Exception:
-                        pury_row.append("-")
-                pury_row_row = {"항목명" : "순차입금"}
-                for col,value in zip(df.columns[1:], pury_row):
-                    pury_row_row[col] = f"{add_commas(value)}" if value != '-' else '-'
-                df = pd.concat([df, pd.DataFrame([pury_row_row])], ignore_index=True)
-            except Exception as e:
-                return JSONResponse(content={'error' : f"순차입금 계산 중 오류 발생: {str(e)}"}, status_code=500)
-        # 부채비율 계산
-        if '부채총계' in df['항목명'].values and '자본총계' in df['항목명'].values:
-            try:
-                debt_row = clean_and_convert(df[df['항목명'] == '부채총계'].iloc[0, 1:])
-                equity_row = clean_and_convert(df[df['항목명'] == '자본총계'].iloc[0, 1:])
-                liability_ratio = []
-
-                for debt, equity in zip(debt_row, equity_row):
-                    try:
-                        ratio = (debt / equity * 100) if pd.notna(debt) and pd.notna(equity) else None
-                        liability_ratio.append(int(ratio) if ratio is not None else '-')
-                    except Exception:
-                        liability_ratio.append("-")  # 계산 중 오류 발생 시 "-" 처리
-
-                liability_ratio_row = {"항목명": "부채비율"}
-                for col, value in zip(df.columns[1:], liability_ratio):
-                    liability_ratio_row[col] = f"{add_commas(value)}%" if value != "-" else "-"
-
-                df = pd.concat([df, pd.DataFrame([liability_ratio_row])], ignore_index=True)
-
-            except Exception as e:
-                return JSONResponse(content={"error": f"부채비율 계산 중 오류 발생: {str(e)}"}, status_code=500)
-
-        # 영업이익률 계산
-        if '매출액' in df['항목명'].values and '영업이익' in df['항목명'].values:
-            try:
-                sales_row = clean_and_convert(df[df['항목명'] == '매출액'].iloc[0, 1:])
-                operating_income_row = clean_and_convert(df[df['항목명'] == '영업이익'].iloc[0, 1:])
-                profit_margin = []
-
-                for sales, income in zip(sales_row, operating_income_row):
-                    try:
-                        margin = (income / sales * 100) if pd.notna(sales) and pd.notna(income) else None
-                        profit_margin.append(int(margin) if margin is not None else '-')
-                    except Exception:
-                        profit_margin.append("-")  # 계산 중 오류 발생 시 "-" 처리
-
-                profit_margin_row = {"항목명": "영업이익률"}
-                for col, value in zip(df.columns[1:], profit_margin):
-                    profit_margin_row[col] = f"{add_commas(value)}%" if value != "-" else "-"
-
-                df = pd.concat([df, pd.DataFrame([profit_margin_row])], ignore_index=True)
-
-            except Exception as e:
-                return JSONResponse(content={"error": f"영업이익률 계산 중 오류 발생: {str(e)}"}, status_code=500)
-            
-        today_today = datetime.datetime.today().strftime('%m월 %d일')
         stock_price_row = {
             "항목명": f'{today_today} 주가',
-            df.columns[1]: f'{stock_price:,}원' if isinstance(stock_price, (int, float)) else f"{stock_price}원",
-            **{col: None for col in df.columns[2:]},
+            ref_col: f'{stock_price:,}원' if isinstance(stock_price, (int, float)) else f"{stock_price}원",
+            **{col: None for col in merged_df.columns if col not in ["항목명", ref_col]}
         }
         market_cap_row = {
             "항목명": "시가총액",
-            df.columns[1]: formatted_market_cap if isinstance(market_cap, (int, float)) else formatted_market_cap,
-            **{col: None for col in df.columns[2:]},
+            ref_col: formatted_market_cap,
+            **{col: None for col in merged_df.columns if col not in ["항목명", ref_col]}
         }
-        df = pd.concat([df, pd.DataFrame([stock_price_row, market_cap_row])], ignore_index=True)
+        merged_df = pd.concat([merged_df, pd.DataFrame([stock_price_row, market_cap_row])], ignore_index=True)
         
-        quarter_columns = [col for col in df.columns if col.endswith('Q')]  # '3Q', '4Q' 등으로 끝나는 열 찾기
-        quarter_columns.sort(key=lambda x: int(x.split('.')[0]))  # 연도 기준 정렬
+        quarter_columns = [col for col in merged_df.columns if col.endswith('Q')]
+        quarter_columns.sort(key=lambda x: int(x.split('.')[0]))
 
-        if len(quarter_columns) >= 2:  # 최소 두 개의 분기가 있어야 비교 가능
-            for index, row in df.iterrows():
-                try:
-                    # 최신 분기와 이전 분기를 초기화
-                    curr_col = quarter_columns[-1]  # 최신 분기
-                    prev_col = quarter_columns[-2]  # 이전 분기
+        all_selected_items = set((item1 or []) + (item2 or []) + (item3 or []))
 
-                    # 최신 분기 데이터가 없는 경우, 이전 분기와 그 이전 분기를 비교
-                    if pd.isna(row[curr_col]) or row[curr_col] == "-":
-                        curr_col = prev_col  # 최신 분기를 이전 분기로 대체
-                        prev_col = quarter_columns[-3] if len(quarter_columns) >= 3 else None  # 그 이전 분기를 가져옴
 
-                    # 이전 분기가 없는 경우 처리 건너뛰기
-                    if prev_col is None:
+        if len(quarter_columns) >= 2:
+            for index, row in merged_df.iterrows():
+                항목명 = str(row['항목명'])
+                if 항목명 in all_selected_items:
+                    try:
+                        curr_col = quarter_columns[-1]
+                        prev_col = quarter_columns[-2]
+                        if pd.isna(row[curr_col]) or row[curr_col] == "-":
+                            curr_col = prev_col
+                            prev_col = quarter_columns[-3] if len(quarter_columns) >= 3 else None
+
+                        if prev_col is None:
+                            continue
+
+                        prev_value = reclean_and_reconvert(pd.Series([row[prev_col]])).iloc[0]
+                        curr_value = reclean_and_reconvert(pd.Series([row[curr_col]])).iloc[0]
+
+                        change = calculate_change(curr_value, prev_value)
+                        formatted_change, color = format_change(change)
+
+                        if formatted_change != '-':
+                            merged_df.at[index, curr_col] += f' <span style="color: {color};">{formatted_change}</span>'
+                    except Exception as e:
+                        print(f"오류 발생 (행 : {index}) : {e}")
                         continue
-
-                    # 데이터 추출
-                    prev_value = reclean_and_reconvert(pd.Series([row[prev_col]])).iloc[0]
-                    curr_value = reclean_and_reconvert(pd.Series([row[curr_col]])).iloc[0]
-
-                    # 변화율 계산
-                    change = calculate_change(curr_value, prev_value)
-                    formatted_change, color = format_change(change)
-
-                    # 변화율 결과를 추가
-                    if formatted_change != '-':
-                        df.at[index, curr_col] += f' <span style="color: {color};">{formatted_change}</span>'  # HTML 태그로 색상 적용
-                except Exception as e:
-                    print(f"오류 발생 (행 : {index}) : {e}")
-                    continue
         # 결과 반환
         return JSONResponse(content={
-            "financial_data": df.to_dict(orient="records")})
+            "financial_data": merged_df.to_dict(orient="records")})
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=500)
+
+#---------------------------------------------------------------재무데이터 ------------------------------------------------------------------------------------------------
+
+
+
+
+@app.get('/list', response_class=HTMLResponse)
+async def list():
+    return templates.TemplateResponse('list.html', {"request": {}})
+
+def get_columns_by_report_type(report_type, statement_type):
+    if statement_type == "손익계산서":
+        mapping = {
+            "1분기보고서": ["당기_1분기_3개월", "당기_1분기말"],
+            "반기보고서": ["당기_반기_3개월", "당기_반기말"],
+            "3분기보고서": ["당기_3분기_3개월", "당기_3분기말"],
+            "사업보고서": ["당기"]
+        }
+    elif statement_type == "현금흐름표":
+        mapping = {
+            "1분기보고서": ["당기_1분기", "당기_1분기말"],
+            "반기보고서": ["당기_반기", "당기_반기말"],
+            "3분기보고서": ["당기_3분기", "당기_3분기말"],
+            "사업보고서": ["당기"]
+        }
+    else:
+        mapping = {
+            "1분기보고서": ["당기_1분기말"],
+            "반기보고서": ["당기_반기말"],
+            "3분기보고서": ["당기_3분기말"],
+            "사업보고서": ["당기"]
+        }
+    return mapping.get(report_type, ["당기"])
+
+
+
+def calculate_change(current, previous):
+    try:
+        if pd.notna(current) and pd.notna(previous) and previous != 0:
+            return (current - previous) / abs(previous) * 100
+    except (TypeError, ValueError):
+        return np.nan
+    return np.nan
+
+
+@app.get("/independent-report-input")
+async def get_report_options():
+    '''
+    보고서종류
+    '''
+    try:
+        connection = pymysql.connect(**DB_CONFIG)
+        query = """
+        SELECT DISTINCT 보고서종류 
+        FROM (
+            SELECT 보고서종류 FROM BalanceSheet
+            UNION 
+            SELECT 보고서종류 FROM IncomeStatement
+            UNION
+            SELECT 보고서종류 FROM CashFlow
+        ) AS combined
+        """
+        df = pd.read_sql(query, connection)
+        connection.close()
+
+        report_options = [{'label': report, 'value': report} for report in df['보고서종류'].unique()]
+        return JSONResponse(content={"report_options": report_options})
+    
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+    
+
+
+@app.get("/rate-change-analysis")
+async def rate_change_analysis(
+    selected_year: int = Query(...),
+    selected_rate_change: float = Query(...),
+    selected_financial_statement: str = Query(...),
+    selected_report: str = Query(...),
+    compare_report: Optional[str] = Query(None),
+    selected_statement_type: str = Query(...),
+    selected_items: Union[List[str], str, None] = Query(None)
+):
+    underline_accounts_income = ["매출액", "영업이익", "당기순이익"]
+    underline_accounts_financial = ["자산총계", '부채총계', "자본총계"]
+    underline_accounts_cash = ['영업활동현금흐름', '배당금의지급', '투자활동현금흐름', '재무활동현금흐름', '자기주식의취득', '현금의증감', '유상증자']
+
+    table_name = "BalanceSheet" if selected_financial_statement == '재무상태표' else (
+        "IncomeStatement" if selected_financial_statement == '손익계산서' else "CashFlow")
+
+    keywords = underline_accounts_financial if selected_financial_statement == '재무상태표' else (
+        underline_accounts_income if selected_financial_statement == '손익계산서' else underline_accounts_cash)
+
+    if selected_items:
+        keywords = [item for item in keywords if item in selected_items]
+
+    try:
+        conn = pymysql.connect(**DB_CONFIG)
+        query = f"""
+            SELECT * FROM {table_name}
+            WHERE 결산기준일 BETWEEN %s AND %s
+            AND 재무제표명 = %s
+            AND 항목명 IN ({', '.join(['%s'] * len(keywords))})
+        """
+        params = [selected_year - 1, selected_year, selected_statement_type] + keywords
+        df = pd.read_sql(query, conn, params=params)
+        conn.close()
+    except Exception as e:
+        return JSONResponse(content={"error": f"데이터 로딩 오류: {str(e)}"}, status_code=500)
+
+    if df.empty:
+        return JSONResponse(content={"message": "선택된 조건에 대한 데이터가 없습니다."}, status_code=404)
+
+    report_order = ['1분기보고서', '반기보고서', '3분기보고서', '사업보고서']
+    if compare_report and report_order.index(compare_report) > report_order.index(selected_report):
+        current_column = get_columns_by_report_type(compare_report, selected_financial_statement)
+        previous_column = get_columns_by_report_type(selected_report, selected_financial_statement)
+        prev_data = df[(df['보고서종류'] == selected_report) & (df['결산기준일'] == selected_year) & (df['항목명'].isin(keywords))]
+        curr_data = df[(df['보고서종류'] == compare_report) & (df['결산기준일'] == selected_year) & (df['항목명'].isin(keywords))]
+        previous_label = selected_report
+        current_label = compare_report
+    else:
+        current_column = get_columns_by_report_type(selected_report, selected_financial_statement)
+        previous_column = get_columns_by_report_type(compare_report or selected_report, selected_financial_statement)
+        prev_data = df[(df['보고서종류'] == (compare_report or selected_report)) & (df['결산기준일'] == selected_year - 1) & (df['항목명'].isin(keywords))]
+        curr_data = df[(df['보고서종류'] == selected_report) & (df['결산기준일'] == selected_year) & (df['항목명'].isin(keywords))]
+        previous_label = f"{selected_year - 1}년"
+        current_label = f"{selected_year}년"
+
+    if prev_data.empty or curr_data.empty:
+        return JSONResponse(content={"message": "해당 연도 또는 비교 연도 데이터가 부족합니다."}, status_code=404)
+
+    results = []
+    for company in curr_data['회사명'].unique():
+        curr = curr_data[curr_data['회사명'] == company]
+        prev = prev_data[prev_data['회사명'] == company]
+        if not prev.empty and not curr.empty:
+            for 항목명 in keywords:
+                prev_val = next((prev[prev['항목명'] == 항목명][col].values[0] for col in previous_column if col in prev.columns and not prev[prev['항목명'] == 항목명][col].empty), np.nan)
+                curr_val = next((curr[curr['항목명'] == 항목명][col].values[0] for col in current_column if col in curr.columns and not curr[curr['항목명'] == 항목명][col].empty), np.nan)
+                # prev_val = prev[prev['항목명'] == 항목명][previous_column].values[0] if not prev[prev['항목명'] == 항목명].empty else np.nan
+                # curr_val = curr[curr['항목명'] == 항목명][current_column].values[0] if not curr[curr['항목명'] == 항목명].empty else np.nan
+                if pd.notna(prev_val) and pd.notna(curr_val):
+                    rate = calculate_change(float(curr_val), float(prev_val))
+                    if abs(rate) >= selected_rate_change:
+                        results.append({
+                            '회사명': company,
+                            '항목명': 항목명,
+                            previous_label: f"{prev_val:,.2f}",
+                            current_label: f"{curr_val:,.2f}",
+                            '변화율': f"{rate:.2f}%",
+                            'color': 'blue' if rate < 0 else 'red',
+                            'sort_value': rate  # 정렬용 추가
+                        })
+    results.sort(key=lambda x: (x['항목명'], -x['sort_value']))  # 항목명별, 변화율 내림차순
+    for r in results:
+        r.pop('sort_value', None)
+
+    if not results:
+        return JSONResponse(content={"message": "조건을 만족하는 결과가 없습니다."})
+
+    return JSONResponse(content={"results": results})
+
+    
+
