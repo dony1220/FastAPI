@@ -283,7 +283,7 @@ async def get_financial_data(
 
     closing_month, quarter_suffix = report_mapping[selected_report_type]
 
-    def get_column_expression(binance_type: str, report_type: str, is_cumulative: bool) -> str:
+    def get_column_expression(binance_type: str, report_type: str, is_cumulative: bool, aggregation: str) -> str:
         if binance_type == "손익계산서":
             if is_cumulative:
                 return {
@@ -291,6 +291,8 @@ async def get_financial_data(
                     "3분기보고서": "당기_3분기_누적"
                 }.get(report_type, "당기")
             else:
+                if report_type == "사업보고서":
+                    return "(당기 - 당기_3분기_누적)"
                 return {
                     "1분기보고서": "CASE WHEN 당기_1분기_3개월 IS NOT NULL THEN 당기_1분기_3개월 ELSE 당기_1분기말 END",
                     "반기보고서": "CASE WHEN 당기_반기_3개월 IS NOT NULL THEN 당기_반기_3개월 ELSE 당기_반기말 END",
@@ -354,21 +356,91 @@ async def get_financial_data(
             table_name = table_mapping.get(binance)
             if not table_name:
                 continue
-            column_expr = get_column_expression(binance, selected_report_type, aggregation == "cumulative")
-            year_columns = year_columns_template(column_expr)
-            sql = f"""
-                SELECT 항목명,\n{year_columns}
-                FROM {table_name}
-                WHERE 회사명 = %s
-                  AND 재무제표명 = %s
-                  AND 보고서종류 = %s
-                  AND 재무제표종류 = %s
-                  AND 항목명 = %s
-                GROUP BY 항목명
-            """
-            df = pd.read_sql(sql, connection, params=(selected_company, selected_statement_type, selected_report_type, binance, item))
-            if not df.empty:
-                dfs.append(df)
+
+            if (selected_report_type == "사업보고서" and aggregation == "quarterly" and binance == "손익계산서"):
+        # 사업보고서 '당기' 조회
+                biz_sql = f"""
+                    SELECT 항목명,
+                    {", ".join([
+                        f"FORMAT(MAX(CASE WHEN 결산기준일 = {year} AND 결산월 = 12 THEN 당기 END), 0) AS '{str(year)[2:]}.4Q'"
+                        for year in range(2019, 2025)
+                    ])}
+                    FROM {table_name}
+                    WHERE 회사명 = %s
+                    AND 재무제표명 = %s
+                    AND 보고서종류 = '사업보고서'
+                    AND 재무제표종류 = %s
+                    AND 항목명 = %s
+                    GROUP BY 항목명
+                """
+                biz_df = pd.read_sql(biz_sql, connection, params=(selected_company, selected_statement_type, binance, item))
+
+                # 3분기보고서 '당기_3분기_누적' 조회
+                q3_sql = f"""
+                    SELECT 항목명,
+                    {", ".join([
+                        f"FORMAT(MAX(CASE WHEN 결산기준일 = {year} AND 결산월 = 9 THEN 당기_3분기_누적 END), 0) AS '{str(year)[2:]}.3Q'"
+                        for year in range(2019, 2025)
+                    ])}
+                    FROM {table_name}
+                    WHERE 회사명 = %s
+                    AND 재무제표명 = %s
+                    AND 보고서종류 = '3분기보고서'
+                    AND 재무제표종류 = %s
+                    AND 항목명 = %s
+                    GROUP BY 항목명
+                """
+                q3_df = pd.read_sql(q3_sql, connection, params=(selected_company, selected_statement_type, binance, item))
+
+                if biz_df.empty:
+                    continue
+
+                if q3_df.empty:
+                    # 3분기 데이터가 없으면 그냥 사업보고서 당기 데이터 사용
+                    dfs.append(biz_df)
+                else:
+                    # 두 df를 항목명으로 merge
+                    merged = pd.merge(biz_df, q3_df, on="항목명", how="left")
+
+                    # 계산할 연도 리스트
+                    result_rows = []
+                    for idx, row in merged.iterrows():
+                        result = {"항목명": row["항목명"]}
+                        for year in range(2019, 2025):
+                            year_4q = f"{str(year)[2:]}.4Q"
+                            year_3q = f"{str(year)[2:]}.3Q"
+                            
+                            # 둘 다 값이 있으면 계산
+                            try:
+                                value_4q = float(str(row[year_4q]).replace(",", "")) if pd.notna(row[year_4q]) else None
+                                value_3q = float(str(row[year_3q]).replace(",", "")) if pd.notna(row[year_3q]) else 0  # 없으면 0으로
+                                if value_4q is not None:
+                                    result[year_4q] = "{:,.0f}".format(value_4q - value_3q)
+                                else:
+                                    result[year_4q] = None
+                            except Exception as e:
+                                result[year_4q] = None
+                        result_rows.append(result)
+
+                    result_df = pd.DataFrame(result_rows)
+                    dfs.append(result_df)
+            else:
+                #이부분 새로 수정 사업보고서 분기 실적
+                column_expr = get_column_expression(binance, selected_report_type, aggregation == "cumulative", aggregation)
+                year_columns = year_columns_template(column_expr)
+                sql = f"""
+                    SELECT 항목명,\n{year_columns}
+                    FROM {table_name}
+                    WHERE 회사명 = %s
+                    AND 재무제표명 = %s
+                    AND 보고서종류 = %s
+                    AND 재무제표종류 = %s
+                    AND 항목명 = %s
+                    GROUP BY 항목명
+                """
+                df = pd.read_sql(sql, connection, params=(selected_company, selected_statement_type, selected_report_type, binance, item))
+                if not df.empty:
+                    dfs.append(df)
 
         connection.close()
         if not dfs:
