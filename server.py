@@ -163,7 +163,6 @@ async def get_item_options(
                     AND 재무제표종류 = %s
                     AND 항목명 IS NOT NULL
                     AND 항목명 != ''
-                    ORDER BY 항목명
                 """
         elif selected_binance_type == "재무상태표":
                 query = """
@@ -175,7 +174,6 @@ async def get_item_options(
                     AND 재무제표종류 = %s
                     AND 항목명 IS NOT NULL
                     AND 항목명 != ''
-                    ORDER BY 항목명
                 """
         elif selected_binance_type == "현금흐름표":
                 query = """
@@ -187,14 +185,13 @@ async def get_item_options(
                     AND 재무제표종류 = %s
                     AND 항목명 IN(
                         '영업활동현금흐름',
-                        '배당금의지급',
                         '투자활동현금흐름',
+                        '유상증자',
                         '재무활동현금흐름',
+                        '배당금의지급',
                         '자기주식의취득',
-                        '현금의증감',
-                        '유상증자'
+                        '현금의증감'
                     )
-                    ORDER BY 항목명
                 """
         else:
             return JSONResponse(content={"error": "유효하지 않은 재무제표종류입니다."}, status_code=400)
@@ -412,8 +409,9 @@ async def get_financial_data(
         
         def get_stock_price(stock_code):
             try:
-                today = datetime.datetime.today().strftime('%Y-%m-%d')
-                stock_data = fdr.DataReader(stock_code, today, today)
+                # stock_today = datetime.datetime.today().strftime('%Y-%m-%d')
+                stock_yesterday = (datetime.datetime.today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+                stock_data = fdr.DataReader(stock_code, stock_yesterday, stock_yesterday)
                 if stock_data.empty:
                     return "주가 데이터 없음"
                 return stock_data['Close'].values[0]
@@ -423,8 +421,9 @@ async def get_financial_data(
 
         def get_market_cap(stock_code):
             try:
-                today = datetime.datetime.today().strftime('%Y%m%d')
-                stock_data = stock.get_market_cap(today, today, stock_code)
+                marketcap_yesterday = (datetime.datetime.today()-datetime.timedelta(days=1)).strftime('%Y%m%d')
+                # today = datetime.datetime.today().strftime('%Y%m%d')
+                stock_data = stock.get_market_cap(marketcap_yesterday, marketcap_yesterday, stock_code)
                 if stock_data.empty:
                     yesterday = (datetime.datetime.today() - datetime.timedelta(days=1)).strftime('%Y%m%d')
                     stock_data = stock.get_market_cap(yesterday, yesterday, stock_code)
@@ -454,18 +453,18 @@ async def get_financial_data(
         stock_price = get_stock_price(stock_code)
         market_cap = get_market_cap(stock_code)  
         formatted_market_cap = format_market_price(market_cap)            
-        today_today = datetime.datetime.today().strftime('%m월 %d일')
+        # today_today = datetime.datetime.today().strftime('%m월 %d일')
 
         ref_col = merged_df.columns[1]  # 첫 번째 분기 열 기준
 
         
         stock_price_row = {
-            "항목명": f'{today_today} 주가',
+            "항목명": f'전일종가 ',
             ref_col: f'{stock_price:,}원' if isinstance(stock_price, (int, float)) else f"{stock_price:,}원",
             **{col: None for col in merged_df.columns if col not in ["항목명", ref_col]}
         }
         market_cap_row = {
-            "항목명": "시가총액",
+            "항목명": "전일 시가총액",
             ref_col: formatted_market_cap,
             **{col: None for col in merged_df.columns if col not in ["항목명", ref_col]}
         }
