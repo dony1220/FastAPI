@@ -531,8 +531,8 @@ async def get_financial_data(
 
         
         stock_price_row = {
-            "항목명": f'전일종가 ',
-            ref_col: f'{stock_price:,}원' if isinstance(stock_price, (int, float)) else f"{stock_price:,}원",
+            "항목명": '전일종가',
+            ref_col: f'{stock_price:,}원' if isinstance(stock_price, (int, float)) else stock_price,
             **{col: None for col in merged_df.columns if col not in ["항목명", ref_col]}
         }
         market_cap_row = {
