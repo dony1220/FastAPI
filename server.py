@@ -485,10 +485,10 @@ async def get_financial_data(
                 stock_yesterday = (datetime.datetime.today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
                 stock_data = fdr.DataReader(stock_code, stock_yesterday, stock_yesterday)
                 if stock_data.empty:
-                    return "주가 데이터 없음"
+                    return "주가 데이터 없음 (휴일등으로 데이터가 없을 경우 직접확인 요망)"
                 return stock_data['Close'].values[0]
             except Exception as e:
-                print(f"주가 데이터 없음: {str(e)}")
+                print(f"주가 데이터 없음 (휴일등으로 데이터가 없을 경우 직접확인 요망)")
                 return f"주가 데이터 없음"
 
         def get_market_cap(stock_code):
@@ -500,10 +500,10 @@ async def get_financial_data(
                     yesterday = (datetime.datetime.today() - datetime.timedelta(days=1)).strftime('%Y%m%d')
                     stock_data = stock.get_market_cap(yesterday, yesterday, stock_code)
                 if stock_data.empty:
-                    return "시총 데이터 없음"
+                    return "시총 데이터 없음 (휴일등으로 데이터가 없을 경우 직접확인 요망)"
                 return stock_data["시가총액"].values[0]
             except Exception as e:
-                print(f"시총 데이터 없음: {str(e)}")
+                print(f"시총 데이터 없음 (휴일등으로 데이터가 없을 경우 직접확인 요망)")
                 return f"시가총액 조회 오류"
         
         def format_market_price(market_price):
