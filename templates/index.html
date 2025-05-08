@@ -237,7 +237,7 @@
         <h1>재무 시계열 분류</h1>
         <form id="data-form">
             <div class="form-group">
-                <label for="company-input">회사명을 입력해주세요</label>
+                <label for="company-input">회사명을 입력해주세요 (*정확하게 입력)</label>
                 <input type="text" id="company-input" name="company" placeholder="회사명을 입력해주세요">
             </div>
             <!-- <h5>*정확한 회사명을 기입해주세요</h5> -->
@@ -441,7 +441,8 @@
                 } else {
                     resultContainer.innerHTML = '';
                     const title = document.createElement('h2');
-                    title.innerHTML = `${company} <span style="color: #ff5722;">연결재무추이</span> <small style="font-size: 12px;">(단위 : 억원)</small>`;
+                    const aggregationLabel = aggregation === 'quarterly' ? '분기' : '누적';
+                    title.innerHTML = `${company} <span style="color: #ff5722;">${statement}추이 ${aggregationLabel} </span> <small style="font-size: 12px;">(단위 : 억원)</small>`;
                     title.style.color = '#007bff';
                     title.style.marginBottom = '20px';
                     title.style.textAlign = 'center';

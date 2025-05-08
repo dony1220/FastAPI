@@ -478,7 +478,12 @@ async def get_financial_data(
 
         # 쉼표를 다시 추가하는 함수
 
-        
+        def format_price(value):
+            try:
+                return f"{int(value):,}"
+            except (ValueError, TypeError):
+                return value
+            
         def get_stock_price(stock_code):
             try:
                 # stock_today = datetime.datetime.today().strftime('%Y-%m-%d')
@@ -532,7 +537,7 @@ async def get_financial_data(
         
         stock_price_row = {
             "항목명": '전일종가',
-            ref_col: f'{stock_price:,}원' if isinstance(stock_price, (int, float)) else stock_price,
+            ref_col: format_price(stock_price),
             **{col: None for col in merged_df.columns if col not in ["항목명", ref_col]}
         }
         market_cap_row = {
