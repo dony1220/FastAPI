@@ -230,6 +230,7 @@
             flex: 1;
             min-width: 250px;
         }
+ 
     </style>
 </head>
 <body>
@@ -333,6 +334,7 @@
             🔄 모두 초기화
         </button>
         <div id="result"></div>
+        <button type="button" id="download-csv-btn" class="custom-btn" style="margin-top: 18px; display: none;">엑셀 다운로드</button>
     </div>
 
     <script>
@@ -385,6 +387,7 @@
             event.preventDefault();
     
             const company = document.getElementById('company-input').value;
+            latestCompanyName = company;  // 전역 변수에 저장
             const statement = document.getElementById('statement-input').value;
             const report = document.getElementById('report-input').value;
     
@@ -442,7 +445,7 @@
                     resultContainer.innerHTML = '';
                     const title = document.createElement('h2');
                     const aggregationLabel = aggregation === 'quarterly' ? '분기' : '누적';
-                    title.innerHTML = `${company} <span style="color: #ff5722;">${statement}추이 ${aggregationLabel} </span> <small style="font-size: 12px;">(단위 : 억원)</small>`;
+                    title.innerHTML = `${company} <span style="color: #ff5722;">${statement}추이 ${aggregationLabel}</span> <small style="font-size: 12px;">(단위 : 억원)</small>`;
                     title.style.color = '#007bff';
                     title.style.marginBottom = '20px';
                     title.style.textAlign = 'center';
@@ -493,6 +496,8 @@
                         </p>
                     `;
                     resultContainer.appendChild(explanation);
+                    document.getElementById('download-csv-btn').style.display = 'block';
+
                 }
             } catch (error) {
                 resultContainer.innerHTML = `<p>서버 요청 실패: ${error.message}</p>`;
@@ -516,6 +521,8 @@
 
         const resultContainer = document.getElementById('result');
         resultContainer.innerHTML = '';
+        document.getElementById('download-csv-btn').style.display = 'none';  // 새 요청 전에 숨김
+
         });
     
         // 클릭 효과 유지
@@ -538,6 +545,30 @@
                 setTimeout(() => particle.remove(), 800);
             }
         });
+        document.getElementById("download-csv-btn").addEventListener("click", () => {
+            const table = document.querySelector("#result table");
+            if (!table) {
+                alert("다운로드할 데이터가 없습니다.");
+                return;
+            }
+
+            let csv = "";
+            const rows = table.querySelectorAll("tr");
+            rows.forEach(row => {
+                const cols = row.querySelectorAll("th, td");
+                const rowData = Array.from(cols).map(col => `"${col.textContent.trim()}"`).join(",");
+                csv += rowData + "\n";
+            });
+
+            const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `${latestCompanyName}_재무실적추이${new Date().toISOString().slice(0, 10)}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
     </script>
 </body>
 </html>
